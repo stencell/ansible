@@ -1,0 +1,415 @@
+---
+- name: Install Cinder on a standalone node
+  hosts: cinder-test
+  become: true
+  remote_user: root
+  vars:
+    - rhn_id: <your-rhn-id>
+    - rhn_pass: <your-rhn-pass>
+    - rhn_pool: <your-rhn-pool>
+    - keystone_db_pass: password
+    - cinder_db_pass: password
+    - osp_admin_pass: password
+    - cinder_osp_pass: password
+    - cinder_storage_ip: <your-cinder-node-ip>
+    - mysql_root_password: password
+    - extra_disk: /dev/vdb
+
+  tasks:
+    - name: check if server is registered with RHN
+      command: subscription-manager status
+      register: rhn_status
+      ignore_errors: true
+
+    - name: register with RHN
+      command: subscription-manager register --username={{ rhn_id }} --password={{ rhn_pass }}
+      when: rhn_status.stdout.find('Unknown') != -1
+
+    - name: clear bash history
+      shell: cat /dev/null > ~/.bash_history
+      when: rhn_status.stdout.find('Unknown') != -1
+
+    - name: attach to pool
+      command: subscription-manager attach --pool {{ rhn_pool }}
+      when: rhn_status.stdout.find('Unknown') != -1
+
+    - name: enable OpenStack repos
+      command: subscription-manager repos --disable=* --enable=rhel-7-server-rpms --enable=rhel-7-server-openstack-10-rpms --enable=rhel-7-server-rh-common-rpms --enable=rhel-7-server-extras-rpms --enable=rhel-7-server-openstack-10-devtools-rpms
+      #when: rhn_status.stdout.find('Unknown') != -1
+
+    - name: update all packages
+      yum:
+        name: '*'
+        state: latest
+      register: installed_packages
+      retries: 2
+      delay: 30
+
+    - name: check if kernel was updated
+      shell: if [ $(rpm -q kernel | sort -Vr | head -n 1) != kernel-$(uname -r) ]; then echo reboot; else echo ‘no’; fi
+      ignore_errors: true
+      register: reboot_hint
+
+    - name: reboot if kernel was updated
+      shell: sleep 2 &7 shutdown -r now
+      async: 1
+      poll: 0
+      ignore_errors: true
+      become: true
+      when: reboot_hint == 'reboot'
+
+    - name: wait for server to reboot
+      wait_for:
+        host: "{{ ansible_ssh_host }}"
+        state: started
+        delay: 30
+        timeout: 300
+        port: 22
+      become: false
+      delegate_to: localhost
+      when: reboot_hint == 'reboot'
+
+    - name: disable NetworkManager
+      service:
+        name: NetworkManager
+        state: stopped
+        enabled: false
+
+    - name: start network service
+      service:
+        name: network
+        state: started
+        enabled: true
+
+    - name: install iptables
+      yum:
+        name: iptables-services
+        state: installed
+
+    - name: disable firewalld
+      service:
+        name: firewalld
+        state: stopped
+        enabled: false
+
+    - name: start & enable iptables
+      service:
+        name: "{{ item }}"
+        state: running
+        enabled: true
+      with_items:
+        - iptables
+        - ip6tables
+
+    - name: Install database
+      yum:
+        name: "{{ item }}"
+        state: latest
+      with_items:
+        - mariadb-galera-server
+        - MySQL-python
+
+    - name: update iptables for mysql
+      iptables:
+        state: present
+        chain: INPUT
+        protocol: tcp
+        destination_port: 3306
+        jump: ACCEPT
+        action: insert
+        comment: mariadb for OpenStack
+
+    - name: iptables-save
+      shell: iptables-save > /etc/sysconfig/iptables
+
+    - name: enable mariadb
+      service:
+        name: mariadb
+        state: restarted
+        enabled: true
+
+    - name: mysql_secure_installation (set root pw)
+      mysql_user:
+        login_user: root
+        login_host: "{{ item }}"
+        login_password: ""
+        name: root
+        password: "{{ mysql_root_password }}"
+        state: present
+      with_items:
+        - localhost
+      ignore_errors: true
+
+    - name: mysql_secure_installation (remove anonymous user)
+      command: 'mysql -u root -p{{mysql_root_password }} -e "{{ item }}"'
+      with_items:
+        - DELETE FROM mysql.user WHERE User=''
+      changed_when: false
+
+    - name: mysql_secure_installation (disallow root remote)
+      command: 'mysql -u root -p{{mysql_root_password }} -e "{{ item }}"'
+      with_items:
+        - DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')
+      changed_when: false
+
+    - name: mysql_secure_installation (remove test db)
+      command: 'mysql -u root -p{{mysql_root_password }} -e "{{ item }}"'
+      with_items:
+        - DROP DATABASE test
+        - DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%'
+      changed_when: false
+      ignore_errors: true
+
+    - name: mysql_secure_installation (flush priv)
+      command: 'mysql -u root -p{{mysql_root_password }} -e "{{ item }}"'
+      with_items:
+        - FLUSH PRIVILEGES
+      changed_when: false
+
+    - name: Create keystone & cinder db
+      mysql_db:
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - keystone
+        - cinder
+
+    - name: create keystone db user & permissions
+      mysql_user:
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        name: keystone
+        state: present
+        password: "{{ keystone_db_pass }}"
+        priv: keystone.*:ALL
+
+    - name: create cinder db user & permissions
+      mysql_user:
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        name: cinder
+        state: present
+        password: "{{ cinder_db_pass }}"
+        priv: cinder.*:ALL
+
+    - name: mysql_secure_installation (flush priv)
+      command: 'mysql -u root -p{{mysql_root_password }} -e "{{ item }}"'
+      with_items:
+        - FLUSH PRIVILEGES
+      changed_when: false
+
+    - name: Install rabbitMQ
+      yum:
+        name: rabbitmq-server
+        state: latest
+
+    - name: update iptables for rabbitMQ
+      iptables:
+        state: present
+        chain: INPUT
+        protocol: tcp
+        destination_port: 5672
+        jump: ACCEPT
+        action: insert
+        comment: rabbitMQ for OpenStack
+
+    - name: iptables-save
+      shell: iptables-save > /etc/sysconfig/iptables
+
+    - name: enable rabbitMQ
+      service:
+        name: rabbitmq-server
+        state: restarted
+        enabled: true
+
+    - name: change rabbit guest password
+      command: rabbitmqctl change_password guest password
+
+    - name: add cinder user to rabbit
+      command: rabbitmqctl add_user cinder password
+
+    - name: set rabbit permissions for cinder
+      command: rabbitmqctl set_permissions cinder ".*" ".*" ".*"
+
+    - name: Install openstack client
+      yum:
+        name: python-openstackclient
+        state: latest
+
+    - name: install keystone & cinder packages
+      yum:
+        name:
+          - openstack-keystone
+          - openstack-utils
+          - openstack-selinux
+          - openstack-cinder
+          - openstack-utils
+          - openstack-selinux
+          - device-mapper-multipath
+          - targetcli
+        state: latest
+
+    - name: Update keystone.conf file
+      ini_file:
+        dest: /etc/keystone/keystone.conf
+        section: sql
+        option: connection
+        value: mysql://keystone:{{ keystone_db_pass }}@localhost/keystone
+
+    - name: update iptables for keystone
+      iptables:
+        state: present
+        chain: INPUT
+        protocol: tcp
+        destination_port: 5000
+        jump: ACCEPT
+        action: insert
+        comment: keystone for OpenStack
+
+    - name: update iptables for keystone
+      iptables:
+        state: present
+        chain: INPUT
+        protocol: tcp
+        destination_port: 35357
+        jump: ACCEPT
+        action: insert
+        comment: keystone for OpenStack
+
+    - name: iptables-save
+      shell: iptables-save > /etc/sysconfig/iptables
+
+    - name: Initialize keystone DB
+      shell: su keystone -s /bin/sh -c "keystone-manage db_sync"
+
+    - block:
+        - name: start keystone service
+          service:
+            name: openstack-keystone
+            state: running
+            enabled: true
+          register: keystone_service
+
+      rescue:
+        - name: install httpd
+          yum:
+            name:
+              - httpd
+              - mod_wsgi
+            state: latest
+
+        - name: update httpd.conf
+          lineinfile:
+            dest: /etc/httpd/conf/httpd.conf
+            regexp: "^ServerName"
+            insertafter: "^#ServerName"
+            line: "ServerName localhost"
+
+        - name: create symlink for keystone
+          command: ln -s /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d/
+
+        - name: start httpd service
+          service:
+            name: httpd
+            state: running
+            enabled: true
+
+    - name: create credentials file
+      blockinfile:
+        create: true
+        dest: /root/osp_credentials
+        block: |
+          export OS_USERNAME=admin
+          export OS_TENANT_NAME=admin
+          export OS_PASSWORD={{ osp_admin_pass }}
+          export OS_AUTH_URL=http://localhost:35357/v2.0/
+          export PS1='[\u@\h \W(keystone_admin)]\$ '
+
+    - name: bootstrap keystone
+      command: keystone-manage bootstrap --bootstrap-password {{ osp_admin_pass }} --bootstrap-username admin --bootstrap-project-name admin --bootstrap-role-name admin --bootstrap-service-name keystone --bootstrap-region-id RegionOne --bootstrap-admin-url http://localhost:35357 --bootstrap-public-url http://localhost:5000 --bootstrap-internal-url http://localhost:5000
+
+    - name: create keystone objects for cinder
+      shell: source /root/osp_credentials && {{ item }}
+      with_items:
+        - openstack project create --description "Services Tenant" services
+        - openstack user create --password {{ cinder_osp_pass }} cinder
+        - openstack role add --project services --user cinder admin
+        - openstack service create --name cinder --description "Cinder Volume Service" volume
+        - openstack service create --name cinderv2 --description "Cinder Volume v2 Service" volumev2
+        - openstack endpoint create --publicurl 'http://localhost:8776/v1/%(tenant_id)s' --adminurl 'http://localhost:8776/v1/%(tenant_id)s' --internalurl 'http://localhost:8776/v1/%(tenant_id)s' --region RegionOne cinder
+        - openstack endpoint create --publicurl 'http://localhost:8776/v2/%(tenant_id)s' --adminurl 'http://localhost:8776/v2/%(tenant_id)s' --internalurl 'http://localhost:8776/v2/%(tenant_id)s' --region RegionOne cinderv2
+
+    - name: set sql connection in cinder.conf
+      ini_file:
+        dest: /etc/cinder/cinder.conf
+        section: DEFAULT
+        option: sql_connection
+        value: mysql://cinder:{{ cinder_db_pass }}@localhost/cinder
+
+    - name: update cinder.conf file
+      ini_file:
+        dest: /etc/cinder/cinder.conf
+        section: "{{ item.section }}"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+      with_items:
+        - { section: 'DEFAULT', option: 'auth_strategy', value: 'keystone' }
+        - { section: 'keystone_authtoken', option: 'auth_host', value: 'localhost' }
+        - { section: 'keystone_authtoken', option: 'admin_tenant_name', value: 'services' }
+        - { section: 'keystone_authtoken', option: 'admin_user', value: 'cinder' }
+        - { section: 'keystone_authtoken', option: 'admin_password', value: '{{ cinder_osp_pass }}' }
+        - { section: 'DEFAULT', option: 'rpc_backend', value: 'cinder.openstack.common.rpc.impl_kombu' }
+        - { section: 'DEFAULT', option: 'rabbit_host', value: 'localhost' }
+        - { section: 'DEFAULT', option: 'rabbit_port', value: '5672' }
+        - { section: 'DEFAULT', option: 'rabbit_userid', value: 'cinder' }
+        - { section: 'DEFAULT', option: 'rabbit_password', value: 'password' }
+        - { section: 'DEFAULT', option: 'rabbit_virtual_host', value: '/' }
+        - { section: 'DEFAULT', option: 'volume_group', value: 'cinder-volumes' }
+        - { section: 'DEFAULT', option: 'volume_driver', value: 'cinder.volume.drivers.lvm.LVMVolumeDriver' }
+        - { section: 'DEFAULT', option: 'iscsi_helper', value: 'lioadm' }
+        - { section: 'DEFAULT', option: 'iscsi_ip_address', value: '{{ cinder_storage_ip }}' }
+
+    - name: update iptables for cinder
+      iptables:
+        state: present
+        chain: INPUT
+        protocol: tcp
+        destination_port: 8776
+        jump: ACCEPT
+        action: insert
+        comment: cinder for OpenStack
+
+    - name: update iptables for cinder
+      iptables:
+        state: present
+        chain: INPUT
+        protocol: tcp
+        destination_port: 3260
+        jump: ACCEPT
+        action: insert
+        comment: cinder for OpenStack
+
+    - name: iptables-save
+      shell: iptables-save > /etc/sysconfig/iptables
+
+    - name: initialize cinder DB
+      shell: su cinder -s /bin/sh -c "cinder-manage db sync"
+
+    - name: create PV & VG
+      lvg:
+        pvs: "{{ extra_disk }}"
+        vg: cinder-volumes
+        state: present
+
+    - name: start and enable cinder services
+      service:
+        name: "{{ item }}"
+        state: running
+        enabled: true
+      with_items:
+        - target
+        - openstack-cinder-api
+        - openstack-cinder-scheduler
+        - openstack-cinder-volume
