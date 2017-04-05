@@ -1,0 +1,49 @@
+---
+- name: install atomic-openshift-utils
+  yum:
+    name: atomic-openshift-utils
+    state: latest
+
+- name: install openshift exclude packages for 3.4
+  yum:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+    - atomic-openshift-excluder
+    - atomic-openshift-docker-excluder
+
+- name: remove openshift exclusions during install
+  command: atomic-openshift-excluder unexclude
+
+- name: install docker
+  yum:
+    name: docker
+    state: present
+
+- name: fix up /etc/sysconfig/docker
+  lineinfile:
+    state: present
+    regexp: "^OPTIONS="
+    line: "OPTIONS='--selinux-enabled --insecure-registry 172.30.0.0/16 --log-driver=journald'"
+    dest: /etc/sysconfig/docker
+
+- name: start and enable docker
+  service:
+    name: docker
+    enabled: true
+    state: started
+
+- name: copy ssh key to master & infra
+  copy:
+    src: /home/nstephan/GoogleDrive/keys/cloudwest-key
+    dest: /home/cloud-user/.ssh/id_rsa
+    mode: 0600
+    owner: cloud-user
+    group: cloud-user
+  when: inventory_hostname in groups['ocp_masters'] or inventory_hostname in groups['ocp_infra']
+
+- name: update ssh config
+  blockinfile:
+    dest: /etc/ssh/ssh_config
+    block: StrictHostKeyChecking no
+  when: inventory_hostname in groups['ocp_masters']

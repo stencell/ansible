@@ -1,0 +1,81 @@
+[OSEv3:children]
+masters
+nodes
+nfs
+
+[OSEv3:vars]
+ansible_user = cloud-user
+ansible_become = true
+deployment_type = openshift-enterprise
+openshift_release=v3.4
+
+openshift_master_default_subdomain=apps.lab.example.com
+openshift_master_logout_url=http://ocp-master.lab.example.com
+openshift_hosted_metrics_public_url=https://hawkular-metrics.lab.example.com/hawkular/metrics
+
+openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider', 'filename': '/etc/origin/master/htpasswd'}]
+
+# default project node selector
+osm_default_node_selector='region=primary'
+
+#OpenStack cloud provider
+openshift_cloudprovider_kind=openstack
+openshift_cloudprovider_openstack_auth_url={{ keystone_admin }}
+openshift_cloudprovider_openstack_username={{ osp_username }}
+openshift_cloudprovider_openstack_password={{ osp_password }}
+#openshift_cloudprovider_openstack_domain_id=domain_id
+#openshift_cloudprovider_openstack_domain_name=domain_name
+#openshift_cloudprovider_openstack_tenant_id=tenant_id
+openshift_cloudprovider_openstack_tenant_name={{ osp_tenant }}
+openshift_cloudprovider_openstack_region=regionOne
+openshift_cloudprovider_openstack_lb_subnet_id={{ osp_subnet_id }}
+
+
+openshift_hosted_router_selector='region=infra'
+
+openshift_hosted_registry_selector='region=infra'
+openshift_hosted_registry_storage_kind=openstack
+openshift_hosted_registry_storage_access_modes=['ReadWriteOnce']
+openshift_hosted_registry_storage_openstack_filesystem=ext4
+openshift_hosted_registry_storage_openstack_volumeID={{ ocp_volume.volume.id }}
+openshift_hosted_registry_storage_volume_size=10Gi
+
+#openshift_hosted_metrics_deploy=true
+openshift_hosted_metrics_storage_kind=nfs
+openshift_hosted_metrics_storage_access_modes=['ReadWriteOnce']
+openshift_hosted_metrics_storage_nfs_directory=/exports
+openshift_hosted_metrics_storage_nfs_options='*(rw,root_squash)'
+openshift_hosted_metrics_storage_volume_name=metrics
+openshift_hosted_metrics_storage_volume_size=10Gi
+
+#openshift_hosted_logging_deploy=true
+openshift_hosted_logging_storage_kind=nfs
+openshift_hosted_logging_storage_access_modes=['ReadWriteOnce']
+openshift_hosted_logging_storage_nfs_directory=/exports
+openshift_hosted_logging_storage_nfs_options='*(rw,root_squash)'
+openshift_hosted_logging_storage_volume_name=logging
+openshift_hosted_logging_storage_volume_size=10Gi
+
+openshift_master_logging_public_url=https://kibana.lab.example.com
+openshift_hosted_logging_hostname=logging.apps.lab.example.com
+
+
+[masters]
+{% for master in groups['ocp_masters'] %}
+{{ master }}
+{% endfor %}
+
+[nodes]
+{% for node in groups['ocp_nodes'] %}
+{{ node }} openshift_node_labels="{'region': 'primary', 'zone': 'default'}"
+{% endfor %}
+{% for master in groups['ocp_masters'] %}
+{{ master }} openshift_schedulable=true openshift_node_labels="{'region': 'infra', 'zone': 'default'}"
+{% endfor %}
+
+[nfs]
+{% for master in groups['ocp_masters'] %}
+{{ master }}
+{% endfor %}
+
+

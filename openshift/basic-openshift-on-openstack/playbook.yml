@@ -1,0 +1,144 @@
+---
+- name: Deploy instances onto OSP
+  hosts: localhost
+  tasks:
+    - include_vars: "{{ item }}"
+      with_items:
+        - variables.yml
+        - other-variables.yml
+
+    - include: create_osp_vms.yml
+
+    - name: create temporary master inventory
+      add_host:
+        name: "{{ item[0] }}"
+        groups: ocp_masters
+        ansible_host: "{{ item[1] }}"
+        ansible_user: cloud-user
+        ansible_become: true
+      with_nested:
+        - "{{ ocp_master.openstack.name }}"
+        - "{{ ocp_master.openstack.interface_ip }}"
+
+    - name: create temporary node inventory
+      add_host:
+        name: "{{ item.server.name }}"
+        groups: ocp_nodes
+        ansible_host: "{{ item.server.private_v4 }}"
+        ansible_user: cloud-user
+        ansible_become: true
+      with_items: "{{ ocp_node.results }}"
+
+    - name: create temporary infra inventory
+      add_host:
+        name: "{{ item[0] }}"
+        groups: ocp_infra
+        ansible_host: "{{ item[1] }}"
+        ansible_user: cloud-user
+        ansible_become: true
+      with_nested:
+        - "{{ ocp_infra.openstack.name }}"
+        - "{{ ocp_infra.openstack.interface_ip }}"
+
+    - name: Update OpenStack subnet with new nameserver
+      os_subnet:
+        auth:
+          auth_url: "{{ keystone_auth }}"
+          username: "{{ osp_username }}"
+          password: "{{ osp_password }}"
+          project_name: "{{ osp_tenant }}"
+        state: present
+        network_name: openshift_demo_network
+        name: openshift_demo_subnet
+        dns_nameservers:
+          - "{{ ocp_infra.openstack.private_v4 }}"
+        cidr: 192.168.47.0/24
+
+    - name: update local ssh-bastion.cfg file
+      template:
+        src: ssh-bastion.cfg.j2
+        dest: ./ssh-bastion.cfg
+
+    - name: clean up known_hosts
+      lineinfile:
+        dest: ~/.ssh/known_hosts
+        state: absent
+        regexp: "{{ item }}"
+      with_items:
+        - ^10.9.60
+        - ^192.168.47
+
+    - name: sleep for 30 seconds
+      pause:
+        seconds: 30
+        prompt: Giving instances time to boot
+
+- name: Register nodes & install packages
+  hosts: ocp_masters:ocp_nodes:ocp_infra
+  become: true
+  tasks:
+    - include_vars: "{{ item }}"
+      with_items:
+        - variables.yml
+        - other-variables.yml
+
+    - name: register to RHN and update
+      include: register_rhn.yml
+
+    - name: install basic OCP packages
+      include: install_ocp_packages.yml
+      when: inventory_hostname in groups['ocp_masters'] or inventory_hostname in groups['ocp_nodes']
+
+    - name: create cinder volume for registry
+      os_volume:
+        state: present
+        auth:
+          auth_url: "{{ keystone_auth }}"
+          username: "{{ osp_username }}"
+          password: "{{ osp_password }}"
+          project_name: "{{ osp_tenant }}"
+        size: 10
+        display_name: ocp_registry
+      register: ocp_volume
+      run_once: true
+      delegate_to: localhost
+
+    - name: add basic ansible hosts file
+      template:
+        src: openshift-hosts.yml.j2
+        dest: /etc/ansible/hosts
+        mode: 0644
+        owner: root
+        group: root
+      when: inventory_hostname in groups['ocp_masters']
+
+- name: set up dnsmasq on ocp-infra
+  hosts: ocp_infra
+  tasks:
+    blockinfile:
+      dest: /etc/dnsmasq.d/forwarding.conf
+      marker: "# {mark} Ansible Managed Entries"
+      block: |
+        resolv-file=/etc/resolv.dnsmasq
+        domain-needed
+        bogus-priv
+
+    blockinfile:
+      dest: /etc/resolv.dnsmasq
+      marker: "# {mark} Ansible Managed Entries"
+      block: |
+        nameserver 10.11.164.2
+        nameserver 10.11.164.3
+
+    # change this to update dnsmasq config on infra and write out hosts file
+    # - name: update hosts files
+    #   blockinfile:
+    #     dest: /etc/hosts
+    #     marker: "# {mark} Ansible Managed Entries"
+    #     block: |
+    #       {{ item[0].ansible_host }} {{ item[0].name }}
+    #       {{ item[1].ansible_host }} {{ item[1].name }}
+    #   with_items: 
+    #     - "{{ groups['ocp_masters'] }}"
+    #     - "{{ groups['ocp_nodes'] }}"
+    #   when: inventory_hostname in groups['ocp_infra']

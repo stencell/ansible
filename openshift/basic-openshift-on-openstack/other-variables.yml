@@ -1,0 +1,9 @@
+---
+# OSP credentials
+osp_username: <osp-user>
+osp_password: <osp-pass>
+
+# RHN credentials
+rhn_username: <rhn_user>
+rhn_password: <rhn_pass>
+rhn_pool: <pool_id>

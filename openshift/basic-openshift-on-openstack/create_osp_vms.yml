@@ -1,0 +1,72 @@
+---
+- name: launch infra/bastion
+  os_server:
+    state: present
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: "{{ osp_tenant }}"
+    auto_ip: yes
+    availability_zone: "{{ az_name }}"
+    flavor: small
+    image: "{{ image_name }}"
+    key_name: "{{ key_name }}"
+    name: ocp-infra.lab.example.com
+    nics:
+      - net-id: "{{ network_id }}"
+    security_groups: ocp_master_sg
+    delete_fip: true
+    userdata: |
+      #cloud-config
+      hostname: ocp-infra.lab.example.com
+      fqdn: ocp-infra.lab.example.com
+  register: ocp_infra
+
+- name: launch OCP master
+  os_server:
+    state: present
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: "{{ osp_tenant }}"
+    auto_ip: yes
+    availability_zone: "{{ az_name }}"
+    flavor: "{{ master_flavor_name }}"
+    image: "{{ image_name }}"
+    key_name: "{{ key_name }}"
+    name: "{{ master_vm_name }}"
+    nics:
+      - net-id: "{{ network_id }}"
+    security_groups: ocp_master_sg
+    delete_fip: true
+    userdata: |
+      #cloud-config
+      hostname: {{ master_vm_name }}
+      fqdn: {{ master_vm_name }}
+  register: ocp_master
+
+- name: launch OCP nodes
+  os_server:
+    state: present
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: "{{ osp_tenant }}"
+    auto_ip: no
+    availability_zone: "{{ az_name }}"
+    flavor: "{{ node_flavor_name }}"
+    image: "{{ image_name }}"
+    key_name: "{{ key_name }}"
+    name: "{{ item }}"
+    nics:
+      - net-id: "{{ network_id }}"
+    security_groups: ocp_master_sg
+    userdata: |
+      #cloud-config
+      hostname: {{ item }}
+      fqdn: {{ item }}
+  with_items: "{{ node_vm_names }}"
+  register: ocp_node

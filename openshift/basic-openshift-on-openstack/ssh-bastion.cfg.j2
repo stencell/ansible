@@ -1,0 +1,12 @@
+Host 192.168.47.*
+  ProxyCommand ssh -W %h:%p cloud-user@{{ ocp_infra.openstack.interface_ip }}
+  IdentityFile ~/.ssh/cloudwest-key
+  StrictHostKeyChecking no
+  UserKnownHostsFile=/dev/null
+
+Host *
+  ControlMaster auto
+  ControlPath ~/.ssh/mux-%r@%h:%p
+  ControlPersist 60s
+  StrictHostKeyChecking no
+  UserKnownHostsFile=/dev/null

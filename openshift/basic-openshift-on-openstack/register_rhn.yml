@@ -1,0 +1,82 @@
+---
+- name: check if server is registered with RHN
+  command: subscription-manager status
+  register: rhn_status
+  ignore_errors: true
+
+- name: register ocp node(s) with RHN
+  # This module doesn't appear to work real well and won't attach to the pool using ID...maybe someday
+  #redhat_subscription:
+  #  state: present
+  #  username: "{{ rhn_username }}"
+  #  password: "{{ rhn_password }}"
+  #  autosubscribe: false
+  #  pool: "{{rhn_pool }}"
+  command: subscription-manager register --username={{ rhn_username }} --password={{ rhn_password }}
+  when: rhn_status.stdout.find('Unknown') != -1
+
+- name: clear bash history
+  shell: cat /dev/null > ~/.bash_history
+  when: rhn_status.stdout.find('Unknown') != -1
+
+- name: attach to pool
+  command: subscription-manager attach --pool {{ rhn_pool }}
+  when: rhn_status.stdout.find('Unknown') != -1
+
+- name: enable openshift repos
+  command: subscription-manager repos --disable=* --enable=rhel-7-server-rpms --enable=rhel-7-server-extras-rpms --enable=rhel-7-server-ose-3.4-rpms
+  when: rhn_status.stdout.find('Unknown') != -1
+
+- name: install base packages
+  yum:
+    name:
+      - wget
+      - git
+      - net-tools
+      - bind-utils
+      - iptables-services
+      - bridge-utils
+      - bash-completion
+      - mlocate
+    state: latest
+  retries: 2
+  delay: 30
+
+- name: update all packages
+  yum:
+    name: '*'
+    state: latest
+  register: installed_packages
+  retries: 2
+  delay: 30
+
+- name: check if kernel was updated
+  shell: if [ $(rpm -q kernel | sort -Vr | head -n 1) != kernel-$(uname -r) ]; then echo reboot; else echo ‘no’; fi
+  ignore_errors: true
+  register: reboot_hint
+
+- name: reboot nodes if kernel was updated
+  shell: sleep 2 && shutdown -r now
+  async: 1
+  poll: 0
+  ignore_errors: true
+  become: true
+  when: reboot_hint.stdout == 'reboot' and inventory_hostname in groups['ocp_nodes']
+
+- name: reboot masters if kernel was updated
+  shell: sleep 2 && shutdown -r now
+  async: 1
+  poll: 0
+  ignore_errors: true
+  become: true
+  when: reboot_hint.stdout == 'reboot' and inventory_hostname in groups['ocp_masters'] or inventory_hostname in groups['ocp_infra']
+
+- name: wait for server to reboot
+  wait_for:
+    host: "{{ ansible_ssh_host }}"
+    state: started
+    delay: 30
+    timeout: 300
+    port: 22
+  become: false
+  delegate_to: localhost
