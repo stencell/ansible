@@ -1,0 +1,11 @@
+---
+- name: Create OpenStack projects
+  os_project:
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+    state: present
+    name: ocp_{{ guid }}_project
+    description: Openstack project for {{ guid }} user
+    enabled: True    

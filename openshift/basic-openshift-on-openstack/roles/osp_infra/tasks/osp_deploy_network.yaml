@@ -1,0 +1,40 @@
+---
+- name: Create OpenStack network
+  os_network:
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+    state: present
+    name: ocp_{{ guid }}_network
+    external: false
+    project: ocp_{{ guid }}_project
+  register: ocp_network
+
+- name: Create OpenStack subnet
+  os_subnet:
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+    state: present
+    network_name: ocp_{{ guid }}_network # change this to use variable from previous task
+    name: ocp_{{ guid }}_subnet
+    cidr: 192.168.47.0/24
+    dns_nameserver:
+      - "{{ dns1 }}"
+      - "{{ dns2 }}"
+  register: ocp_subnet
+
+- name: Create OpenStack router
+  os_router:
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+    state: present
+    name: ocp_{{ guid }}_router
+    project: ocp_{{ guid }}_project
+    network: "{{ osp_ext_net }}"
+    interfaces:
+      - ocp_{{ guid }}_subnet # change this to use variable from previous task

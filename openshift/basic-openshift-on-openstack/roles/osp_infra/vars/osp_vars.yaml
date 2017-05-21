@@ -1,0 +1,16 @@
+---
+keystone_auth: http://10.9.60.133:5000/v2.0
+keystone_admin: http://10.9.60.133:35357/v2.0/
+az_name: nova
+image_name: rhel7-raw
+key_name: cloudwest-key
+osp_tenant: openshift_demo
+osp_network_id: 8df2c761-0607-446e-b7df-87b3ab912178
+osp_subnet_id: 69520b77-452d-4572-a027-9bbfc319137f
+osp_flavor: small
+
+# Flavor vars
+osp_ocp_master_flavor: ocp_master
+osp_ocp_node_flavor: ocp_node
+osp_ocp_infra_node_flavor: something
+osp_ocp_bastion_flavor: something

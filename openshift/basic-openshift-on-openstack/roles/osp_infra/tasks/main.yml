@@ -1,0 +1,18 @@
+---
+# tasks file for osp_infra
+- name: deploy openstack infrastructure
+  hosts: localhost
+  gather_facts: false
+  tasks:
+  - include_vars: "{{ item }}"
+    with_items: # Do we even need to call this out specifically in a role?
+      - variables.yml
+      - other-variables.yml
+
+  - include: osp_deploy_projects.yaml
+
+  - include: osp_deploy_network.yaml
+
+  - include: osp_deploy_sg.yaml
+
+  - include: osp_deploy_instances.yaml

@@ -1,0 +1,91 @@
+---
+- name: Launch bastion node
+  os_server:
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: ocp_{{ guid }_project}
+    state: present
+    auto_ip: yes
+    availability_zone: "{{ az_name }}"
+    flavor: small
+    image: "{{ image_name }}"
+    key_name: "{{ key_name }}"
+    name: ocp_{{ guid }}_bastion
+    nics:
+      - net-name: ocp_{{ guid }}_network
+      #- net-name: "{{ ocp_network.someoutput }}"
+    security_groups: ocp_{{ guid }}_bastion_sg
+    delete_fip: true
+    boot_from_volume: true
+  register: ocp_bastion_instance
+
+- name: Launch masters
+  os_server:
+    state: present
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: ocp_{{ guid }_project}
+    auto_ip: no
+    availability_zone: "{{ az_name }}"
+    flavor: "{{ master_flavor_name }}"
+    image: "{{ image_name }}"
+    key_name: "{{ key_name }}"
+    name: ocp_{{ guid }}_master_{{ item }}
+    nics:
+      - net-name: ocp_{{ guid }}_network
+      #- net-name: "{{ ocp_network.someoutput }}"
+    security_groups: ocp_{{ guid }}_master_sg
+    delete_fip: true
+    boot_from_volume: true
+  with_sequence: start=1 end=3
+  register: ocp_master_instance
+
+- name: Launch nodes
+  os_server:
+    state: present
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: ocp_{{ guid }_project}
+    auto_ip: no
+    availability_zone: "{{ az_name }}"
+    flavor: "{{ master_flavor_name }}"
+    image: "{{ image_name }}"
+    key_name: "{{ key_name }}"
+    name: ocp_{{ guid }}_node_{{ item }}
+    nics:
+      - net-name: ocp_{{ guid }}_network
+      #- net-name: "{{ ocp_network.someoutput }}"
+    security_groups: ocp_{{ guid }}_node_sg
+    delete_fip: true
+    boot_from_volume: true
+  with_sequence: start=1 end=2 # the end can be variablized to make more dynamic
+  register: ocp_node_instance
+
+- name: Launch infra_nodes
+  os_server:
+    state: present
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: ocp_{{ guid }_project}
+    auto_ip: no
+    availability_zone: "{{ az_name }}"
+    flavor: "{{ master_flavor_name }}"
+    image: "{{ image_name }}"
+    key_name: "{{ key_name }}"
+    name: ocp_{{ guid }}_infra_node_{{ item }}
+    nics:
+      - net-name: ocp_{{ guid }}_network
+      #- net-name: "{{ ocp_network.someoutput }}"
+    security_groups: ocp_{{ guid }}_infra_node_sg
+    delete_fip: true
+    boot_from_volume: true
+  with_sequence: start=1 end=2 # the end can be variablized to make more dynamic
+  register: ocp_infra_node_instance

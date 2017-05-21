@@ -1,0 +1,115 @@
+---
+- name: create security groups
+  os_security_group:
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: ocp_{{ guid }_project}
+    state: present
+    name: ocp_{{ guid }}_{{ item }}_sg
+    description: Security group for OpenShift {{ item }}
+  with_items:
+    - node
+    - master
+    - infra_node
+    - bastion
+
+- name: Add node security group rules
+  os_security_group_rule:
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: ocp_{{ guid }_project}
+    state: present
+    security_group: ocp_{{ guid }}_node_sg
+    protocol: " {{ item.proto }}"
+    port_range_min: "{{ item.min }}"
+    port_range_max: "{{ item.max }}"
+    remote_ip_prefix: 0.0.0.0/0
+    ### In case we want to eventually switch to remote_groups
+    #remote_group: something
+  with_items:
+    - { proto: 'icmp', min: '-1', max: '-1' }
+    - { proto: 'tcp', min: '22', max: '22' }
+    - { proto: 'tcp', min: '10250', max: '10250' }
+    - { proto: 'tcp', min: '4789', max: '4789' }
+
+- name: Add master security group rules
+  os_security_group_rule:
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: ocp_{{ guid }_project}
+    state: present
+    security_group: ocp_{{ guid }}_master_sg
+    protocol: "{{ item.proto }}"
+    port_range_min: "{{ item.min }}"
+    port_range_max: "{{ item.max }}"
+    remote_ip_prefix: 0.0.0.0/0
+    ### In case we want to eventually switch to remote_groups
+    #remote_group: something
+  with_items:
+    - { proto: 'icmp', min: '-1', max: '-1' }
+    - { proto: 'tcp', min: '22', max: '22' }
+    - { proto: 'tcp', min: '4001', max: '4001' }
+    - { proto: 'tcp', min: '8443', max: '8443' }
+    - { proto: 'tcp', min: '53', max: '53' }
+    - { proto: 'udp', min: '53', max: '53' }
+    - { proto: 'tcp', min: '4789', max: '4789' }
+    - { proto: 'tcp', min: '8053', max: '8053' }
+    - { proto: 'udp', min: '8053', max: '8053' }
+    - { proto: 'tcp', min: '10250', max: '10250' }
+    - { proto: 'tcp', min: '24224', max: '24224' }
+    - { proto: 'udp', min: '24224', max: '24224' }
+    ### These are for etcd in case they need to be broken out
+    - { proto: 'tcp', min: '2379', max: '2379' } # from masters
+    - { proto: 'tcp', min: '2380', max: '2380' } # from etcd hosts
+
+- name: Add infra_node security group rules
+  os_security_group_rule:
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: ocp_{{ guid }_project}
+    state: present
+    security_group: ocp_{{ guid }}_infra_node_sg
+    protocol: "{{ item.proto }}"
+    port_range_min: "{{ item.min }}"
+    port_range_max: "{{ item.max }}"
+    remote_ip_prefix: 0.0.0.0/0
+    ### In case we want to eventually switch to remote_groups
+    #remote_group: something
+  with_items:
+    - { proto: 'icmp', min: '-1', max: '-1' }
+    - { proto: 'tcp', min: '22', max: '22' }
+    - { proto: 'tcp', min: '80', max: '80' }
+    - { proto: 'tcp', min: '443', max: '443' }
+    - { proto: 'tcp', min: '10250', max: '10250' } # from masters
+    - { proto: 'tcp', min: '4789', max: '4789' } # from nodes
+    - { proto: 'tcp', min: '5000', max: '5000' } # not sure what this is for
+    - { proto: '112'} # for VRRP, not sure if it will work without min/max
+
+- name: Add bastion security group rules
+  os_security_group_rule:
+    auth:
+      auth_url: "{{ keystone_auth }}"
+      username: "{{ osp_username }}"
+      password: "{{ osp_password }}"
+      project_name: ocp_{{ guid }_project}
+    state: present
+    security_group: ocp_{{ guid }}_bastion_sg
+    protocol: "{{ item.proto }}"
+    port_range_min: "{{ item.min }}"
+    port_range_max: "{{ item.max }}"
+    remote_ip_prefix: 0.0.0.0/0
+    ### In case we want to eventually switch to remote_groups
+    #remote_group: something
+  with_items:
+    - { proto: 'icmp', min: '-1', max: '-1' }
+    - { proto: 'tcp', min: '22', max: '22' }
+    - { proto: 'tcp', min: '53', max: '53' }
+    - { proto: 'udp', min: '53', max: '53' }
