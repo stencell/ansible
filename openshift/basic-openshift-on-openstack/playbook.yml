@@ -76,6 +76,7 @@
 - name: Register nodes & install packages
   hosts: ocp_masters:ocp_nodes:ocp_infra
   become: true
+  gather_facts: false
   tasks:
     - include_vars: "{{ item }}"
       with_items:
@@ -112,7 +113,7 @@
         group: root
       when: inventory_hostname in groups['ocp_masters']
 
-- name: set up dnsmasq on ocp-infra
+ name: set up dnsmasq on ocp-infra
   hosts: ocp_infra
   tasks:
     blockinfile:
@@ -138,7 +139,7 @@
     #     block: |
     #       {{ item[0].ansible_host }} {{ item[0].name }}
     #       {{ item[1].ansible_host }} {{ item[1].name }}
-    #   with_items: 
+    #   with_items:
     #     - "{{ groups['ocp_masters'] }}"
     #     - "{{ groups['ocp_nodes'] }}"
     #   when: inventory_hostname in groups['ocp_infra']

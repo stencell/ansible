@@ -16,5 +16,5 @@ master_vm_name: ocp-master.lab.example.com
 node_flavor_name: ocp_node
 node_vm_names:
   - ocp-node-1.lab.example.com
-  - ocp-node-2.lab.example.com
-  - ocp-node-3.lab.example.com
+#  - ocp-node-2.lab.example.com
+#  - ocp-node-3.lab.example.com

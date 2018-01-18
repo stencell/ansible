@@ -23,6 +23,9 @@
       fqdn: ocp-infra.lab.example.com
   register: ocp_infra
 
+- debug:
+    var: ocp_infra
+
 - name: launch OCP master
   os_server:
     state: present
@@ -70,3 +73,6 @@
       fqdn: {{ item }}
   with_items: "{{ node_vm_names }}"
   register: ocp_node
+
+- debug:
+    var: ocp_node

@@ -1,7 +1,7 @@
 ---
 # OSP credentials
-osp_username: <osp-user>
-osp_password: <osp-pass>
+osp_username: <osp-username>
+osp_password: <osp-password>
 
 # RHN credentials
 rhn_username: <rhn_user>
