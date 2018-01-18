@@ -8,7 +8,7 @@
         var: manageiq
 
     - name: Create the project
-      shell: "oc new-project {{ project_name }} --display-name={{ project_display_name }} --description={{ project_description }}"
+      shell: "oc new-project {{ project_name }} --display-name={{ project_display_name | default ('') }} --description={{ project_description | default ('') }}"
 
     - name: Add user(s) to project
       shell: "oc adm policy add-role-to-user admin {{ manageiq.user }}"
