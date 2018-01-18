@@ -1,6 +1,6 @@
 ---
 - name: create new OpenShift project
-  hosts: localhost
+  hosts: all
 
   tasks:
     - name: dump miq vars
