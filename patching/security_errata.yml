@@ -1,0 +1,11 @@
+---
+- name: Install errata on EL
+  hosts: all
+  vars:
+    errata_security: yes
+    errata_bugfix: no
+    errata_security_severity:
+      - Critical
+      - Important
+  roles:
+    - errata

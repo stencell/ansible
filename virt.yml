@@ -1,0 +1,12 @@
+---
+- name: test virt functionality
+  hosts: localhost
+  become: true
+  tasks:
+    - virt: command=list_vms
+      register: vm_list
+
+    - debug:
+        var: vm_list
+
+    - virt: command=

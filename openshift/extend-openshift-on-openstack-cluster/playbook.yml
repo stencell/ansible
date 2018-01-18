@@ -1,0 +1,99 @@
+---
+- name: Extend OpenShift cluster with additional nodes
+  hosts: localhost
+  vars:
+    - something
+    - something2
+  tasks:
+    - include_vars: "{{ item }}"
+      with_items:
+        - something
+        - something2
+
+    - name: deploy new instance
+      os_server:
+        state: present
+        auth:
+          auth_url: "{{ keystone_auth }}"
+          username: "{{ osp_username }}"
+          password: "{{ osp_password }}"
+          project_name: "{{ osp_tenant }}"
+        auto_ip: no
+        availability_zone: "{{ az_name }}"
+        flavor: "{{ node_flavor_name }}"
+        image: "{{ image_name }}"
+        key_name: "{{ key_name }}"
+        name: "{{ item }}"
+        nics:
+          - net-id: "{{ network_id }}"
+        security_groups: ocp_master_sg
+        userdata: |
+          #cloud-config
+          hostname: {{ item }}
+          fqdn: {{ item }}
+      with_items: "{{ new_vm_names }}"
+      register: ocp_node
+
+    - name: create temporary node inventory
+      add_host:
+        name: "{{ item.server.name }}"
+        groups: ocp_nodes
+        ansible_host: "{{ item.server.private_v4 }}"
+        ansible_user: cloud-user
+        ansible_become: true
+      with_items: "{{ ocp_node.results }}"
+
+- name: Register and prep new nodes
+  hosts: ocp_nodes
+  tasks:
+    - include_vars: "{{ item }}"
+      with_items:
+        - something
+        - something2
+
+    - name: register to RHN and update
+      include: register_rhn.yml
+
+    - name: install basic OCP packages
+      include: install_ocp_packages.yml
+
+- name: create temporary master inventory
+  hosts: localhost
+  tasks:
+    - include_vars: "{{ item }}"
+      with_items:
+        - something
+        - something2
+    - name: Get information on existing instances
+      os_server_facts:
+        auth:
+          auth_url: "{{ keystone_auth }}"
+          username: "{{ osp_username }}"
+          password: "{{ osp_password }}"
+          project_name: "{{ osp_tenant }}"
+        server: "*master*"
+      register: master_info
+
+    - name: create temporary master inventory
+      add_host:
+        name: "{{ item.server.name }}"
+        groups: ocp_master
+        ansible_host: "{{ item.server.private_v4 }}"
+        ansible_user: cloud-user
+        ansible_become: true
+      with_items: "{{ master_info.results }}"
+
+
+- name: Prepare infra or master for adding new hosts
+  hosts: ocp_master
+  tasks:
+    - name: Backup ansible inventory file
+      shell: cp /etc/ansible/hosts{,.bak}
+
+    - name: add new_nodes
+      blockinfile:
+        destination: /etc/ansible/hosts
+        block: |
+          [new_nodes]
+          "{{ item.server.name }} openshift_node_labels="{'region': 'primary', 'zone': 'default'}"
+      with_items: "{{ ocp_node.results }}"

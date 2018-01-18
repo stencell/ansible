@@ -1,0 +1,40 @@
+---
+- name: Deploy VM to vCenter
+  hosts: localhost
+  vars:
+    - vc_user: administrator@vsphere.local
+    - vc_pass: Redhat1!
+    - vcenter_ip: 10.9.62.70
+    - vcenter_cluster: Raleigh
+    - vcenter_datastore: Shared-NFS
+    - vcenter_dc: Datacenter
+    - vm_name: natetest
+    - vm_ipv4: none
+    - vm_template: rhel7_template
+    - os_type: rhel7_64Guest
+
+  tasks:
+    - name: Deploy VM to vCenter
+      vmware_guest:
+        hostname: "{{ vcenter_ip }}"
+        username: "{{ vc_user }}"
+        password: "{{ vc_pass }}"
+        validate_certs: no
+        #not valid until 2.3
+        #cluster: "{{ vcenter_cluster }}"
+        datacenter: "{{ vcenter_dc }}"
+        name: "{{ vm_name }}"
+        state: poweredon
+        #guest_id: "{{ os_type }}"
+        disk:
+          - size_gb: 10
+            type: thin
+            datastore: "{{ vcenter_datastore }}"
+        hardware:
+          memory_mb: 1024
+          num_cpus: 1
+        #networks:
+        #  - name: VM Network
+        template: "{{ vm_template }}"
+        wait_for_ip_address: yes
+      register: deploy
