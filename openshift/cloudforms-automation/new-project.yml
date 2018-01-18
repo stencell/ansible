@@ -1,0 +1,14 @@
+---
+- name: create new OpenShift project
+  hosts: localhost
+
+  tasks:
+    - name: dump miq vars
+      debug:
+        var: manageiq
+
+    - name: Create the project
+      shell: "oc new-project {{ project_name }} --display-name={{ project_display_name }} --description={{ project_description }}"
+
+    - name: Add user(s) to project
+      shell: "oc adm policy add-role-to-user admin {{ manageiq.user }}"
