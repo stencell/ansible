@@ -7,23 +7,23 @@
       debug:
         var: manageiq
 
-    #- name: Create the project
-    #  shell: "oc new-project {{ project_name }} --display-name={{ project_display_name | default ('') }} --description={{ project_description | default ('') }}"
+    - name: Create the project
+      shell: "oc new-project {{ project_name }} --display-name={{ project_display_name | default ('') }} --description={{ project_description | default ('') }}"
 
-    - name: Get username from MIQ
-      uri:
-        url: "{{ manageiq.api_url }}/api/users/1"
-        method: GET
-        validate_certs: no
-        headers:
-          X-Auth-Token: "{{ manageiq.api_token }}"
-          Content-Type: "application/json"
-        body_format: json
-        return_content: yes
-      register: user_output
+    #- name: Get username from MIQ
+    #  uri:
+    #    url: "{{ manageiq.api_url }}/api/users/1"
+    #    method: GET
+    #    validate_certs: no
+    #    headers:
+    #      X-Auth-Token: "{{ manageiq.api_token }}"
+    #      Content-Type: "application/json"
+    #    body_format: json
+    #    return_content: yes
+    #  register: user_output
 
-    - debug:
-        var: user_output
+    #- debug:
+    #    var: user_output
 
-    #- name: Add user(s) to project
-    #  shell: "oc adm policy add-role-to-user admin {{ manageiq.user }}"
+    - name: Add user(s) to project
+      shell: "oc adm policy add-role-to-user admin {{ manageiq.user }}"
