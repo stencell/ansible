@@ -26,4 +26,4 @@
     #    var: user_output
 
     - name: Add user(s) to project
-      shell: "oc adm policy add-role-to-user admin {{ ocp_username }}"
+      shell: oc adm policy add-role-to-user admin "{{ ocp_username }}"
