@@ -1,6 +1,32 @@
 ---
 - name: Adjust quota for an existing project
-  hosts: localhost
+  hosts: all
+#to-do:
+# create dynamic dialog using expression method to list quota to be modified
 
   tasks:
-  
+    - debug:
+        var: manageiq
+
+    - name: Update configmap quota
+      shell: "oc patch quota {{ quota_name | default ("$(oc get quota | grep -v NAME | awk '{print $1}')") }} -p '{"spec": {"hard": {"configmaps": {{ quota_configmap }}}}}' -n {{ project_name }}"
+
+    - name: Update cpu limits quota
+
+    - name: Update CPU requests quota
+
+    - name: Update memory limits quota
+
+    - name: Update memory requests quota
+
+    - name: Update imagestreams quota
+
+    - name: Update PVC quota
+
+    - name: Update pods quota
+
+    - name: Update RC quota
+
+    - name: Update secrets quota
+
+    - name: Update services quota
