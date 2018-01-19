@@ -8,7 +8,7 @@
         var: manageiq
 
     - name: Create the project
-      shell: "oc new-project {{ project_name }} --display-name={{ project_display_name | default ('') }} --description={{ project_description | default ('') }}"
+      shell: "oc new-project {{ project_name }} --display-name="{{ project_display_name | default ('') }}" --description="{{ project_description | default ('') }}""
 
     #- name: Get username from MIQ
     #  uri:
