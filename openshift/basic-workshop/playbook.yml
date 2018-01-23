@@ -13,7 +13,7 @@
         instance_tags:
             type: master-node
             Name: ocp-master-{{ student_id }}1
-        exact_count: "{{ num_masters }}"
+        exact_count: 1
         count_tag: master-node
         vpc_subnet_id: subnet-7414a13c
         assign_public_ip: yes
@@ -50,17 +50,17 @@
     - debug:
         var: app_nodes
 
-    # - name: update route53
-    #   route53:
-    #     state: present
-    #     zone: openshift.stencell.net
-    #     record: "{{ item.name }}"
-    #     value: "{{ item.private_ip }}"
-    #     type: A
-    #     ttl: 300
-    #   with_items:
-    #     - "{{ master_nodes.instances }}"
-    #     - "{{ app_nodes.instances }}"
+    - name: update route53
+      route53:
+        state: present
+        zone: openshift.stencell.net
+        record: "{{ item.name }}"
+        value: "{{ item.public_ip }}"
+        type: A
+        ttl: 300
+      with_items:
+        - "{{ master_nodes.instances }}"
+        - "{{ app_nodes.instances }}"
 
 - name: prep hosts
   hosts: all_nodes
