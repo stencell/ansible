@@ -7,9 +7,9 @@
       ec2:
         key_name: nate-key
         instance_type: m4.xlarge
-        image: ami-40603AD1
+        image: ami-bd3f94c5
         wait: yes
-        group: ['ocp-node', 'ocp-master']
+        group: ['ocp_node', 'ocp_master']
         instance_tags:
             type: master-node
             Name: ocp-master-{{ student_id }}1
@@ -17,32 +17,40 @@
         count_tag: master-node
         vpc_subnet_id: subnet-7414a13c
         assign_public_ip: yes
+        region: us-west-2
+        volumes:
+          - device_name: /dev/xvdb
+            volume_type: gp2
+            volume_size: 20
+            delete_on_termination: true
+          - device_name: /dev/xvdc
+            volume_type: gp2
+            volume_size: 60
+            delete_on_termination: true
       register: master_nodes
 
     - name: deploy ec2 node instances
       ec2:
         key_name: nate-key
         instance_type: t2.large
-        image: ami-40603AD1
+        image: ami-bd3f94c5
         wait: yes
-        group: ['ocp-node', 'ocp-infranode']
+        group: ['ocp_node', 'ocp_infranode']
         instance_tags:
             type: app-node
             Name: ocp-node-{{ student_id }}{{ item }}
-        exact_count: 3
+        #exact_count: 3
         count_tag: app-node
-        vpc_subnet_id: subnet-29e63245
+        vpc_subnet_id: subnet-7414a13c
         assign_public_ip: yes
+        region: us-west-2
+        volumes:
+          - device_name: /dev/xvdb
+            volume_type: gp2
+            volume_size: 20
+            delete_on_termination: true
       with_sequence: count=3
       register: app_nodes
-
-    - name: create temp inventories
-      add_host:
-        hostname: "{{ item.private_ip }}"
-        groupname: all_nodes
-      with_items:
-        - "{{ master_nodes.instances }}"
-        - "{{ app_nodes.instances }}"
 
     - debug:
         var: master_nodes
@@ -50,20 +58,56 @@
     - debug:
         var: app_nodes
 
-    - name: update route53
+    - name: create temp inventories - masters
+      add_host:
+        hostname: "{{ item.public_ip }}"
+        groupname: all_nodes
+      with_items: "{{ master_nodes.instances }}"
+
+    - name: create app node inventory
+      add_host:
+        hostname: "{{ item['instances'][0]['public_ip'] }}"
+        groupname: all_nodes
+      with_items: "{{ app_nodes.results }}"
+
+    - name: update route53 for master
       route53:
         state: present
         zone: openshift.stencell.net
-        record: "{{ item.name }}"
+        record: "{{ item.tags.Name }}.openshift.stencell.net"
         value: "{{ item.public_ip }}"
         type: A
         ttl: 300
-      with_items:
-        - "{{ master_nodes.instances }}"
-        - "{{ app_nodes.instances }}"
+        overwrite: true
+      with_items: "{{ master_nodes.instances }}"
+
+    - name: update route53 for nodes
+      route53:
+        state: present
+        zone: openshift.stencell.net
+        record: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        value: "{{ item['instances'][0]['public_ip'] }}"
+        type: A
+        ttl: 300
+        overwrite: true
+      with_items: "{{ app_nodes.results }}"
+
+    - name: wait for server to be available
+      wait_for:
+        host: "{{ item }}"
+        state: started
+        delay: 15
+        timeout: 300
+        port: 22
+      with_items: "{{ groups.all_nodes }}"
+      become: false
+      delegate_to: localhost
 
 - name: prep hosts
   hosts: all_nodes
+  become: true
+  user: ec2-user
+  gather_facts: false
 
   tasks:
     - include: ../register_rhn.yml
