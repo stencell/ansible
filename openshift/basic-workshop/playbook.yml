@@ -60,14 +60,16 @@
 
     - name: create temp inventories - masters
       add_host:
-        hostname: "{{ item.public_ip }}"
-        groupname: all_nodes
+        hostname: "{{ item.tags.Name }}"
+        ansible_host: "{{ item.public_ip }}"
+        groupname: all_nodes,masters
       with_items: "{{ master_nodes.instances }}"
 
-    - name: create app node inventory
+    - name: create temp inventories - nodes
       add_host:
-        hostname: "{{ item['instances'][0]['public_ip'] }}"
-        groupname: all_nodes
+        hostname: "{{ item['instances'][0]['tags']['Name'] }}"
+        ansible_host: "{{ item['instances'][0]['public_ip'] }}"
+        groupname: all_nodes,nodes
       with_items: "{{ app_nodes.results }}"
 
     - name: update route53 for master
@@ -112,3 +114,23 @@
   tasks:
     - include: ../register_rhn.yml
     - include: ../install_ocp_packages.yml
+
+- name: set up PV storage on master
+  hosts: "{{ item['instances'][0]['tags']['Name'] }}"
+
+  tasks:
+    - name: set up PV storage on master node
+      lvol:
+        vg: vg-storage
+        lv: lv-storage
+        pvs: /dev/xvdc
+        size: 100%FREE
+
+- name: create openshift inventory file
+  hosts: localhost
+
+  tasks:
+    - name: create openshift inventory file
+      template:
+        dest: ./{{ student_id }}-ocp-inventory
+        src: ocp-inventory.j2
