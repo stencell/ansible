@@ -52,25 +52,32 @@
       with_sequence: count=3
       register: app_nodes
 
-    - debug:
-        var: master_nodes
-
-    - debug:
-        var: app_nodes
+    # - debug:
+    #     var: master_nodes
+    #
+    # - debug:
+    #     var: app_nodes
 
     - name: create temp inventories - masters
       add_host:
-        hostname: "{{ item.tags.Name }}"
+        hostname: "{{ item.tags.Name }}.openshift.stencell.net"
         ansible_host: "{{ item.public_ip }}"
-        groupname: all_nodes,masters
+        groupname:
+          - all_nodes
+          - masters
       with_items: "{{ master_nodes.instances }}"
 
     - name: create temp inventories - nodes
       add_host:
-        hostname: "{{ item['instances'][0]['tags']['Name'] }}"
+        hostname: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
         ansible_host: "{{ item['instances'][0]['public_ip'] }}"
-        groupname: all_nodes,nodes
+        groupname:
+          - all_nodes
+          - nodes
       with_items: "{{ app_nodes.results }}"
+
+    - debug:
+        var: groups['masters']
 
     - name: update route53 for master
       route53:
@@ -109,14 +116,16 @@
   hosts: all_nodes
   become: true
   user: ec2-user
-  gather_facts: false
+  #gather_facts: false
 
   tasks:
     - include: ../register_rhn.yml
     - include: ../install_ocp_packages.yml
 
 - name: set up PV storage on master
-  hosts: "{{ item['instances'][0]['tags']['Name'] }}"
+  hosts: masters
+  user: ec2-user
+  become: true
 
   tasks:
     - name: set up PV storage on master node
