@@ -13,6 +13,7 @@
         instance_tags:
             type: master-node
             Name: ocp-master-{{ student_id }}1
+            function: openshift
         exact_count: 1
         count_tag: master-node
         vpc_subnet_id: subnet-7414a13c
@@ -39,6 +40,7 @@
         instance_tags:
             type: app-node
             Name: ocp-node-{{ student_id }}{{ item }}
+            function: openshift
         #exact_count: 3
         count_tag: app-node
         vpc_subnet_id: subnet-7414a13c
@@ -120,6 +122,9 @@
 
   tasks:
     - include: ../register_rhn.yml
+    - wait_for:
+        timeout: 30
+      delegate_to: localhost
     - include: ../install_ocp_packages.yml
 
 - name: set up PV storage on master
@@ -128,11 +133,15 @@
   become: true
 
   tasks:
+    - name: set up VG on master node
+      lvg:
+        vg: vg-storage
+        pvs: /dev/xvdc
+
     - name: set up PV storage on master node
       lvol:
         vg: vg-storage
         lv: lv-storage
-        pvs: /dev/xvdc
         size: 100%FREE
 
 - name: create openshift inventory file

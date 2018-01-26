@@ -85,23 +85,23 @@ openshift_hosted_registry_storage_volume_size=10Gi
 
 [masters]
 {% for item in groups['masters'] %}
-    {{ ansible_hostname }}
+    {{ hostvars[item].ansible_hostname }}
 {% endfor %}
 
 [etcd]
 {% for item in groups['masters'] %}
-    {{ ansible_hostname }}
+    {{ hostvars[item].ansible_hostname }}
 {% endfor %}
 
 [nodes]
 {% for item in groups['nodes'] %}
-    {{ ansible_hostname }}
+    {{ hostvars[item].ansible_hostname }}
 {% endfor %}
 {% for item in groups['masters'] %}
-    {{ ansible_hostname }}
+    {{ hostvars[item].ansible_hostname }} openshift_schedulable=false
 {% endfor %}
 
 [nfs]
-{% for host in groups['masters'] %}
-    {{ ansible_hostname }}
+{% for item in groups['masters'] %}
+    {{ hostvars[item].ansible_hostname }}
 {% endfor %}
