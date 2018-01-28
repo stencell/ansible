@@ -125,6 +125,7 @@
     - wait_for:
         timeout: 30
       delegate_to: localhost
+      name: 30 extra seconds for instances to return
     - include: ../install_ocp_packages.yml
 
 - name: set up PV storage on master
@@ -144,11 +145,11 @@
         lv: lv-storage
         size: 100%FREE
 
-- name: create openshift inventory file
-  hosts: localhost
-
-  tasks:
-    - name: create openshift inventory file
-      template:
-        dest: ./{{ student_id }}-ocp-inventory
-        src: ocp-inventory.j2
+# - name: create openshift inventory file
+#   hosts: localhost
+#
+#   tasks:
+#     - name: create openshift inventory file
+#       template:
+#         dest: ./{{ student_id }}-ocp-inventory
+#         src: ocp-inventory.j2
