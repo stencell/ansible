@@ -12,8 +12,9 @@
         group: ['ocp_node', 'ocp_master']
         instance_tags:
             type: master-node
-            Name: ocp-master-{{ student_id }}1
+            Name: ocp-master-{{ student_id }}-1
             function: openshift
+            kubernetes.io/cluster/{{ student_id }}: {{ student_id }}
         exact_count: 1
         count_tag: master-node
         vpc_subnet_id: subnet-7414a13c
@@ -39,9 +40,9 @@
         group: ['ocp_node', 'ocp_infranode']
         instance_tags:
             type: app-node
-            Name: ocp-node-{{ student_id }}{{ item }}
+            Name: ocp-node-{{ student_id }}-{{ item }}
             function: openshift
-        #exact_count: 3
+            kubernetes.io/cluster/{{ student_id }}: {{ student_id }}
         count_tag: app-node
         vpc_subnet_id: subnet-7414a13c
         assign_public_ip: yes
@@ -118,7 +119,6 @@
   hosts: all_nodes
   become: true
   user: ec2-user
-  #gather_facts: false
 
   tasks:
     - include: ../register_rhn.yml
@@ -145,11 +145,11 @@
         lv: lv-storage
         size: 100%FREE
 
-# - name: create openshift inventory file
-#   hosts: localhost
-#
-#   tasks:
-#     - name: create openshift inventory file
-#       template:
-#         dest: ./{{ student_id }}-ocp-inventory
-#         src: ocp-inventory.j2
+- name: create openshift inventory file
+  hosts: localhost
+
+  tasks:
+    - name: create openshift inventory file
+      template:
+        dest: ./{{ student_id }}-ocp-inventory
+        src: ocp-inventory.j2

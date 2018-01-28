@@ -1,13 +1,12 @@
 ---
-- name: install atomic-openshift-utils
+- name: install openshift package
   yum:
-    name: atomic-openshift-utils
-    state: latest
-
-- name: install docker
-  yum:
-    name: docker-1.12.6
+    name: "{{ item }}"
     state: present
+  with_items:
+    - atomic-openshift-utils
+    - atomic-openshift-clients
+    - docker-1.12.6
 
 # - name: fix up /etc/sysconfig/docker
 #   lineinfile:
@@ -37,18 +36,3 @@
     name: docker
     enabled: true
     state: started
-
-# - name: copy ssh key to master & infra
-#   copy:
-#     src: /home/nstephan/GoogleDrive/keys/cloudwest-key
-#     dest: /home/cloud-user/.ssh/id_rsa
-#     mode: 0600
-#     owner: cloud-user
-#     group: cloud-user
-#   when: inventory_hostname in groups['ocp_masters'] or inventory_hostname in groups['ocp_infra']
-#
-# - name: update ssh config
-#   blockinfile:
-#     dest: /etc/ssh/ssh_config
-#     block: StrictHostKeyChecking no
-#   when: inventory_hostname in groups['ocp_masters']

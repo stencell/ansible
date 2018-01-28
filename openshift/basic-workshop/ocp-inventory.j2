@@ -29,6 +29,7 @@ openshift_master_console_port=443
 openshift_hosted_prometheus_deploy=true
 openshift_logging_fluentd_audit_container_engine=true
 openshift_logging_install_eventrouter=true
+openshift_clusterid={{ student_id }}
 
 # Docker Configuration
 # Add additional, insecure, and blocked registries to global docker configuration
@@ -62,9 +63,6 @@ openshift_portal_net=172.30.0.0/16
 openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider', 'filename': '/etc/origin/master/htpasswd'}]
 openshift_master_htpasswd_users={'master': '$apr1$D5RCqRWE$hPjtdYa5soFp8a6drVLci0', 'user1': '$apr1$5WkRAcCf$E8QvtM7H02usnUlz7P9BG1', 'user2': '$apr1$5WkRAcCf$E8QvtM7H02usnUlz7P9BG1'}
 
-# default project node selector
-#osm_default_node_selector='role=app'
-
 # Router
 #openshift_router_selector="role=infra"
 openshift_router_selector="router-host=true"
@@ -74,6 +72,7 @@ openshift_router_selector="router-host=true"
 openshift_hosted_router_replicas=1
 
 # OpenShift Registry
+openshift_hosted_registry_selector="role=node"
 openshift_hosted_registry_storage_kind=nfs
 openshift_hosted_registry_storage_access_modes=['ReadWriteMany']
 # nfs_directory must conform to DNS-1123 subdomain must consist of lower case
@@ -83,40 +82,26 @@ openshift_hosted_registry_storage_nfs_options='*(rw,root_squash)'
 openshift_hosted_registry_storage_volume_name=registry
 openshift_hosted_registry_storage_volume_size=10Gi
 
+openshift_cloudprovider_kind=aws
+# Note: IAM profiles may be used instead of storing API credentials on disk.
+openshift_cloudprovider_aws_access_key={{aws_openshift_key}}
+openshift_cloudprovider_aws_secret_key={{aws_openshift_secret}}
+
+#StorageClass
+openshift_storageclass_name=gp2
+openshift_storageclass_parameters={'type': 'gp2', 'encrypted': 'false'}
+
 [masters]
-#{% for item in groups['masters'] %}
-#{{ hostvars[item].ansible_hostname }}
-#{% endfor %}
-{% for item in {{ master_nodes.instances }} %}
-{{ item.tags.Name }}.openshift.stencell.net
-{% endfor %}
+ocp-master-{{ student_id }}-1.openshift.stencell.net
 
 [etcd]
-#{% for item in groups['masters'] %}
-#    {{ hostvars[item].ansible_hostname }}
-#{% endfor %}
-{% for item in {{ master_nodes.instances }} %}
-{{ item.tags.Name }}.openshift.stencell.net
-{% endfor %}
-
-[nodes]
-#{% for item in groups['nodes'] %}
-#    {{ hostvars[item].ansible_hostname }}
-#{% endfor %}
-{% for item in {{ app_nodes.results }} %}
-{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net
-{% endfor %}
-#{% for item in groups['masters'] %}
-#    {{ hostvars[item].ansible_hostname }} openshift_schedulable=false
-#{% endfor %}
-{% for item in {{ master_nodes.instances }} %}
-{{ item.tags.Name }}.openshift.stencell.net
-{% endfor %}
+ocp-master-{{ student_id }}-1.openshift.stencell.net
 
 [nfs]
-#{% for item in groups['masters'] %}
-#    {{ hostvars[item].ansible_hostname }}
-#{% endfor %}
-{% for item in {{ master_nodes.instances }} %}
-{{ item.tags.Name }}.openshift.stencell.net
-{% endfor %}
+ocp-master-{{ student_id }}-1.openshift.stencell.net
+
+[nodes]
+ocp-master-{{ student_id }}-1.openshift.stencell.net openshift_schedulable=false openshift_node_labels="{'role': 'master'}"
+ocp-node-{{ student_id }}-1.openshift.stencell.net openshift_node_labels="{'role': 'node', 'router-host': 'true'}"
+ocp-node-{{ student_id }}-2.openshift.stencell.net openshift_node_labels="{'role': 'node'}"
+ocp-node-{{ student_id }}-3.openshift.stencell.net openshift_node_labels="{'role': 'node'}"
