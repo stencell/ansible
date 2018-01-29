@@ -14,7 +14,7 @@
             type: master-node
             Name: ocp-master-{{ student_id }}-1
             function: openshift
-            kubernetes.io/cluster/{{ student_id }}: {{ student_id }}
+            kubernetes.io/cluster/{{ student_id }}: "{{ student_id }}"
         exact_count: 1
         count_tag: master-node
         vpc_subnet_id: subnet-7414a13c
@@ -34,7 +34,7 @@
     - name: deploy ec2 node instances
       ec2:
         key_name: nate-key
-        instance_type: t2.large
+        instance_type: t2.xlarge
         image: ami-bd3f94c5
         wait: yes
         group: ['ocp_node', 'ocp_infranode']
@@ -42,7 +42,7 @@
             type: app-node
             Name: ocp-node-{{ student_id }}-{{ item }}
             function: openshift
-            kubernetes.io/cluster/{{ student_id }}: {{ student_id }}
+            kubernetes.io/cluster/{{ student_id }}: "{{ student_id }}"
         count_tag: app-node
         vpc_subnet_id: subnet-7414a13c
         assign_public_ip: yes
@@ -122,11 +122,28 @@
 
   tasks:
     - include: ../register_rhn.yml
+
     - wait_for:
         timeout: 30
       delegate_to: localhost
       name: 30 extra seconds for instances to return
+      
     - include: ../install_ocp_packages.yml
+
+    - name: warm up docker images for cfme
+      get_url:
+        url: http://ocp-bastion.openshift.stencell.net/cfme/cfme-bundle.tar
+        dest: /tmp/cfme-bundle.tar
+      when: install_cfme
+
+    - name: load cfme images
+      shell: docker load -i /tmp/cfme-bundle.tar
+      when: install_cfme
+
+    - name: cleanup
+      file:
+        path: /tmp/cfme-bundle.tar
+        state: absent
 
 - name: set up PV storage on master
   hosts: masters
