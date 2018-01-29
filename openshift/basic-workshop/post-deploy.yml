@@ -19,6 +19,14 @@
     - name: update jenkins IS
       shell: oc import-image jenkins --from="registry.access.redhat.com/openshift3/jenkins-2-rhel7" --confirm --all -n openshift
 
+    - name: add master account
+      shell: oc adm policy add-cluster-role-to-user cluster-admin master
+
+    - name: restart api service
+      service:
+        name: atomic-openshift-master-api
+        state: restarted
+
 # - name: add CFME images
 #   hosts: all
 #   user: ec2-user
