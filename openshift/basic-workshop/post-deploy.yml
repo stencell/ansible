@@ -8,7 +8,8 @@
     - ec2_instance_facts:
         region: us-west-2
         filters:
-          "tag:type": master-node
+          #"tag:type": master-node
+          "tag:Name": ocp-master-{{ student_id }}-1
       register: ec2_instances
       delegate_to: localhost
 
