@@ -30,6 +30,36 @@
             volume_size: 60
             delete_on_termination: true
       register: master_nodes
+      when: not ha
+
+    - name: deploy ec2 master instances in HA config
+      ec2:
+        key_name: nate-key
+        instance_type: m4.xlarge
+        image: ami-bd3f94c5
+        wait: yes
+        group: ['ocp_node', 'ocp_master']
+        instance_tags:
+            type: master-node
+            Name: ocp-master-{{ student_id }}-{{ item }}
+            function: openshift
+            kubernetes.io/cluster/{{ student_id }}: "{{ student_id }}"
+        count_tag: master-node
+        vpc_subnet_id: subnet-7414a13c
+        assign_public_ip: yes
+        region: us-west-2
+        volumes:
+          - device_name: /dev/xvdb
+            volume_type: gp2
+            volume_size: 20
+            delete_on_termination: true
+          #- device_name: /dev/xvdc
+          #  volume_type: gp2
+          #  volume_size: 60
+          #  delete_on_termination: true
+      with_sequence: count=3
+      register: master_nodes
+      when: ha
 
     - name: deploy ec2 node instances
       ec2:
@@ -50,10 +80,39 @@
         volumes:
           - device_name: /dev/xvdb
             volume_type: gp2
-            volume_size: 20
+            volume_size: 50
+            delete_on_termination: true
+      with_sequence: count={{ num_instances }}
+      register: app_nodes
+
+    - name: deploy ec2 infra instances in HA config
+      ec2:
+        key_name: nate-key
+        instance_type: m4.xlarge
+        image: ami-bd3f94c5
+        wait: yes
+        group: ['ocp_node', 'ocp_master']
+        instance_tags:
+            type: infra-node
+            Name: ocp-infra-{{ student_id }}-{{ item }}
+            function: openshift
+            kubernetes.io/cluster/{{ student_id }}: "{{ student_id }}"
+        count_tag: infra-node
+        vpc_subnet_id: subnet-7414a13c
+        assign_public_ip: yes
+        region: us-west-2
+        volumes:
+          - device_name: /dev/xvdb
+            volume_type: gp2
+            volume_size: 50
+            delete_on_termination: true
+          - device_name: /dev/xvdc
+            volume_type: gp2
+            volume_size: 110
             delete_on_termination: true
       with_sequence: count=3
-      register: app_nodes
+      register: infra_nodes
+      when: ha
 
     # - debug:
     #     var: master_nodes
@@ -69,6 +128,7 @@
           - all_nodes
           - masters
       with_items: "{{ master_nodes.instances }}"
+      when: not ha
 
     - name: create temp inventories - nodes
       add_host:
@@ -79,8 +139,28 @@
           - nodes
       with_items: "{{ app_nodes.results }}"
 
-    - debug:
-        var: groups['masters']
+    - name: create temp inventories - master HA
+      add_host:
+        hostname: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        ansible_host: "{{ item['instances'][0]['public_ip'] }}"
+        groupname:
+          - all_nodes
+          - masters
+      with_items: "{{ master_nodes.results }}"
+      when: ha
+
+    - name: create temp inventories - infra HA
+      add_host:
+        hostname: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        ansible_host: "{{ item['instances'][0]['public_ip'] }}"
+        groupname:
+          - all_nodes
+          - infra
+      with_items: "{{ infra_nodes.results }}"
+      when: ha
+
+    #- debug:
+    #    var: groups['masters']
 
     - name: update route53 for master
       route53:
@@ -92,6 +172,7 @@
         ttl: 300
         overwrite: true
       with_items: "{{ master_nodes.instances }}"
+      when: not ha
 
     - name: update route53 for nodes
       route53:
@@ -103,6 +184,30 @@
         ttl: 300
         overwrite: true
       with_items: "{{ app_nodes.results }}"
+
+    - name: update route53 for masters - HA
+      route53:
+        state: present
+        zone: openshift.stencell.net
+        record: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        value: "{{ item['instances'][0]['public_ip'] }}"
+        type: A
+        ttl: 300
+        overwrite: true
+      with_items: "{{ master_nodes.results }}"
+      when: ha
+
+    - name: update route53 for infra - HA
+      route53:
+        state: present
+        zone: openshift.stencell.net
+        record: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        value: "{{ item['instances'][0]['public_ip'] }}"
+        type: A
+        ttl: 300
+        overwrite: true
+      with_items: "{{ infra_nodes.results }}"
+      when: ha
 
     - name: wait for server to be available
       wait_for:
@@ -127,7 +232,7 @@
         timeout: 30
       delegate_to: localhost
       name: 30 extra seconds for instances to return
-      
+
     - include: ../install_ocp_packages.yml
 
     - name: warm up docker images for cfme

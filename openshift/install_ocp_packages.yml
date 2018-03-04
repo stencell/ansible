@@ -7,6 +7,7 @@
     - atomic-openshift-utils
     - atomic-openshift-clients
     - docker-1.12.6
+    - redhat-access-insights
 
 # - name: fix up /etc/sysconfig/docker
 #   lineinfile:
@@ -36,3 +37,6 @@
     name: docker
     enabled: true
     state: started
+
+- name: register with insights
+  shell: "redhat-access-insights --register"
