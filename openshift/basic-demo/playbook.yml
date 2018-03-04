@@ -251,22 +251,22 @@
         state: absent
       when: install_cfme
 
-- name: set up PV storage on master
-  hosts: masters
-  user: ec2-user
-  become: true
-
-  tasks:
-    - name: set up VG on master node
-      lvg:
-        vg: vg-storage
-        pvs: /dev/xvdc
-
-    - name: set up PV storage on master node
-      lvol:
-        vg: vg-storage
-        lv: lv-storage
-        size: 100%FREE
+# - name: set up PV storage on master
+#   hosts: masters
+#   user: ec2-user
+#   become: true
+#
+#   tasks:
+#     - name: set up VG on master node
+#       lvg:
+#         vg: vg-storage
+#         pvs: /dev/xvdc
+#
+#     - name: set up PV storage on master node
+#       lvol:
+#         vg: vg-storage
+#         lv: lv-storage
+#         size: 100%FREE
 
 - name: create openshift inventory file
   hosts: localhost
