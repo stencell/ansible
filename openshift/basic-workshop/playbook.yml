@@ -88,10 +88,10 @@
     - name: deploy ec2 infra instances in HA config
       ec2:
         key_name: nate-key
-        instance_type: m4.xlarge
+        instance_type: t2.xlarge
         image: ami-bd3f94c5
         wait: yes
-        group: ['ocp_node', 'ocp_master']
+        group: ['ocp_node', 'ocp_infranode']
         instance_tags:
             type: infra-node
             Name: ocp-infra-{{ student_id }}-{{ item }}
