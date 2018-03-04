@@ -1,0 +1,43 @@
+---
+- name: post openshift install tasks
+  hosts: masters
+  user: ec2-user
+  become: true
+
+  tasks:
+    - ec2_instance_facts:
+        region: us-west-2
+        filters:
+          #"tag:type": master-node
+          "tag:Name": ocp-master-{{ student_id }}-1
+      register: ec2_instances
+      delegate_to: localhost
+
+    - name: update public name in master-config
+      shell: sed -i.bak -e 's/{{ item.public_dns_name }}/ocp-master-{{ student_id }}-1.openshift.stencell.net/g' /etc/origin/master/master-config.yaml
+      with_items: "{{ ec2_instances.instances }}"
+
+    - name: update jenkins IS
+      shell: oc import-image jenkins --from="registry.access.redhat.com/openshift3/jenkins-2-rhel7" --confirm --all -n openshift
+
+    - name: add master account
+      shell: oc adm policy add-cluster-role-to-user cluster-admin master
+
+    - name: restart api service
+      service:
+        name: atomic-openshift-master-api
+        state: restarted
+
+# - name: add CFME images
+#   hosts: all
+#   user: ec2-user
+#   become: true
+#
+#   tasks:
+#     - name: get image bundle from bastion
+#       get_url:
+#         url: http://ocp-bastion.openshift.stencell.net/cfme/cfme-bundle.tar
+#         dest: /tmp/cfme-bundle.tar
+#
+#     - name: load cfme images
+#       shell: docker load -i /tmp/cfme-bundle.tar
