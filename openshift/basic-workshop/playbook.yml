@@ -128,7 +128,7 @@
           - all_nodes
           - masters
       with_items: "{{ master_nodes.instances }}"
-      when: not ha
+      when: ha is defined and ha | match("false")
 
     - name: create temp inventories - nodes
       add_host:
