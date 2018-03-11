@@ -115,7 +115,7 @@
     - name: create temp inventories - masters
       add_host:
         hostname: "{{ item.tags.Name }}.openshift.stencell.net"
-        ansible_host: "{{ item.private_ip }}"
+        ansible_host: "{{ item.public_ip }}"
         groupname:
           - all_nodes
           - masters
@@ -125,7 +125,7 @@
     - name: create temp inventories - nodes
       add_host:
         hostname: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
-        ansible_host: "{{ item['instances'][0]['private_ip'] }}"
+        ansible_host: "{{ item['instances'][0]['public_ip'] }}"
         groupname:
           - all_nodes
           - nodes
@@ -134,7 +134,7 @@
     - name: create temp inventories - master HA
       add_host:
         hostname: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
-        ansible_host: "{{ item['instances'][0]['private_ip'] }}"
+        ansible_host: "{{ item['instances'][0]['public_ip'] }}"
         groupname:
           - all_nodes
           - masters
@@ -144,22 +144,22 @@
     - name: create temp inventories - infra HA
       add_host:
         hostname: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
-        ansible_host: "{{ item['instances'][0]['private_ip'] }}"
+        ansible_host: "{{ item['instances'][0]['public_ip'] }}"
         groupname:
           - all_nodes
           - infra
       with_items: "{{ infra_nodes.results }}"
       when: ha
 
-    #- debug:
-    #    var: groups['masters']
+    - debug:
+        var: groups['all_nodes']
 
     - name: update route53 for master
       route53:
         state: present
         zone: openshift.stencell.net
         record: "{{ item.tags.Name }}.openshift.stencell.net"
-        value: "{{ item.private_ip }}"
+        value: "{{ item.public_ip }}"
         type: A
         ttl: 300
         overwrite: true
@@ -172,7 +172,7 @@
         state: present
         zone: openshift.stencell.net
         record: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
-        value: "{{ item['instances'][0]['private_ip'] }}"
+        value: "{{ item['instances'][0]['public_ip'] }}"
         type: A
         ttl: 300
         overwrite: true
@@ -184,7 +184,7 @@
         state: present
         zone: openshift.stencell.net
         record: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
-        value: "{{ item['instances'][0]['private_ip'] }}"
+        value: "{{ item['instances'][0]['public_ip'] }}"
         type: A
         ttl: 300
         overwrite: true
@@ -196,7 +196,7 @@
         state: present
         zone: openshift.stencell.net
         record: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
-        value: "{{ item['instances'][0]['private_ip'] }}"
+        value: "{{ item['instances'][0]['public_ip'] }}"
         type: A
         ttl: 300
         overwrite: true
@@ -207,8 +207,7 @@
       wait_for:
         host: "{{ item }}"
         state: started
-        delay: 15
-        timeout: 300
+        delay: 10
         port: 22
       with_items: "{{ groups.all_nodes }}"
       become: false
