@@ -50,7 +50,7 @@
             volume_size: 20
             delete_on_termination: true
       with_sequence: count=3
-      register: master_nodes
+      register: master_nodes_ha
       when: ha
 
     - name: deploy ec2 node instances
@@ -138,7 +138,7 @@
         groupname:
           - all_nodes
           - masters
-      with_items: "{{ master_nodes.results }}"
+      with_items: "{{ master_nodes_ha.results }}"
       when: ha
 
     - name: create temp inventories - infra HA
@@ -163,6 +163,7 @@
         type: A
         ttl: 300
         overwrite: true
+        wait: yes
       with_items: "{{ master_nodes.instances }}"
       when: ha is defined and ha | match("false")
 
@@ -175,6 +176,7 @@
         type: A
         ttl: 300
         overwrite: true
+        wait: yes
       with_items: "{{ app_nodes.results }}"
 
     - name: update route53 for masters - HA
@@ -186,7 +188,7 @@
         type: A
         ttl: 300
         overwrite: true
-      with_items: "{{ master_nodes.results }}"
+      with_items: "{{ master_nodes_ha.results }}"
       when: ha
 
     - name: update route53 for infra - HA
