@@ -164,7 +164,7 @@
         ttl: 300
         overwrite: true
       with_items: "{{ master_nodes.instances }}"
-      when: not ha
+      when: ha is defined and ha | match("false")
 
     - name: update route53 for nodes
       route53:
