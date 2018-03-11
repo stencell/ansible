@@ -25,12 +25,8 @@
             volume_type: gp2
             volume_size: 20
             delete_on_termination: true
-          - device_name: /dev/xvdc
-            volume_type: gp2
-            volume_size: 60
-            delete_on_termination: true
       register: master_nodes
-      when: not ha
+      when: ha is defined and ha | match("false")
 
     - name: deploy ec2 master instances in HA config
       ec2:
@@ -53,10 +49,6 @@
             volume_type: gp2
             volume_size: 20
             delete_on_termination: true
-          #- device_name: /dev/xvdc
-          #  volume_type: gp2
-          #  volume_size: 60
-          #  delete_on_termination: true
       with_sequence: count=3
       register: master_nodes
       when: ha
@@ -226,14 +218,14 @@
   user: ec2-user
 
   tasks:
-    - include: ../register_rhn.yml
+    - import_tasks: ../register_rhn.yml
 
     - wait_for:
         timeout: 30
       delegate_to: localhost
       name: 30 extra seconds for instances to return
 
-    - include: ../install_ocp_packages.yml
+    - import_tasks: ../install_ocp_packages.yml
 
     - name: warm up docker images for cfme
       get_url:
@@ -250,23 +242,6 @@
         path: /tmp/cfme-bundle.tar
         state: absent
       when: install_cfme
-
-# - name: set up PV storage on master
-#   hosts: masters
-#   user: ec2-user
-#   become: true
-#
-#   tasks:
-#     - name: set up VG on master node
-#       lvg:
-#         vg: vg-storage
-#         pvs: /dev/xvdc
-#
-#     - name: set up PV storage on master node
-#       lvol:
-#         vg: vg-storage
-#         lv: lv-storage
-#         size: 100%FREE
 
 - name: create openshift inventory file
   hosts: localhost
