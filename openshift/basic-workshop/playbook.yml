@@ -30,7 +30,7 @@
           #   volume_size: 60
           #   delete_on_termination: true
       register: master_nodes
-      when: num_masters == 1
+      when: ha is defined and ha | match("false")
 
     - name: deploy ec2 master instances in HA config
       ec2:
