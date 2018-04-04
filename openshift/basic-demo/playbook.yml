@@ -246,6 +246,7 @@
 
 - name: create openshift inventory file
   hosts: localhost
+  gather_facts: false
 
   tasks:
     - name: create openshift inventory file

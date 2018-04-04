@@ -2,7 +2,6 @@
 masters
 nodes
 etcd
-nfs
 
 [OSEv3:vars]
 # General Stuff
@@ -103,16 +102,13 @@ openshift_storageclass_parameters={'type': 'gp2', 'encrypted': 'false'}
 #openshift_management_storage_class=cloudprovider
 
 [masters]
-ocp-master-{{ student_id }}-1.openshift.stencell.net
+#ocp-master-{{ student_id }}-1.openshift.stencell.net
 
 [etcd]
-ocp-master-{{ student_id }}-1.openshift.stencell.net
-
-[nfs]
-ocp-master-{{ student_id }}-1.openshift.stencell.net
+#ocp-master-{{ student_id }}-1.openshift.stencell.net
 
 [nodes]
-ocp-master-{{ student_id }}-1.openshift.stencell.net openshift_schedulable=false openshift_node_labels="{'role': 'master'}"
-ocp-node-{{ student_id }}-1.openshift.stencell.net openshift_node_labels="{'role': 'node', 'router-host': 'true'}"
-ocp-node-{{ student_id }}-2.openshift.stencell.net openshift_node_labels="{'role': 'node'}"
-ocp-node-{{ student_id }}-3.openshift.stencell.net openshift_node_labels="{'role': 'node'}"
+#ocp-master-{{ student_id }}-1.openshift.stencell.net openshift_schedulable=false openshift_node_labels="{'role': 'master'}"
+#ocp-node-{{ student_id }}-1.openshift.stencell.net openshift_node_labels="{'role': 'node', 'router-host': 'true'}"
+#ocp-node-{{ student_id }}-2.openshift.stencell.net openshift_node_labels="{'role': 'node'}"
+#ocp-node-{{ student_id }}-3.openshift.stencell.net openshift_node_labels="{'role': 'node'}"
