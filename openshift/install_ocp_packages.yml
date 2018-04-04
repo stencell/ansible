@@ -6,7 +6,7 @@
   with_items:
     - atomic-openshift-utils
     - atomic-openshift-clients
-    - docker-1.12.6
+    - docker-1.13.1
     - redhat-access-insights
 
 # - name: fix up /etc/sysconfig/docker
