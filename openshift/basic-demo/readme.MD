@@ -1,13 +1,14 @@
 Here are the variables needed to run the playbook:
 
-student_id
-rhn_username
-rhn_password
-rhn_pool
-aws_openshift_key
-aws_openshift_secret
-install_cfme
-ha
-num_instances
+ansible-playbook ./playbook.yml \
+-e student_id=demo \
+-e rhn_username=nstephan \
+-e rhn_password=nate0nr3dhat \
+-e rhn_pool=yourpool \
+-e aws_openshift_key=yourkey \
+-e aws_openshift_secret=yoursecret \
+-e ha=false \
+-e num_instances=2 \
+-e cns_storage=true
 
 Make sure you have your AWS system vars setup

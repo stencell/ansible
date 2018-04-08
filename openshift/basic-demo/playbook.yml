@@ -14,7 +14,7 @@
             type: master-node
             Name: ocp-master-{{ student_id }}-1
             function: openshift
-            kubernetes.io/cluster/{{ student_id }}: "{{ student_id }}"
+            kubernetes.io/cluster/demo: demo
         exact_count: 1
         count_tag: master-node
         vpc_subnet_id: subnet-7414a13c
@@ -39,7 +39,7 @@
             type: master-node
             Name: ocp-master-{{ student_id }}-{{ item }}
             function: openshift
-            kubernetes.io/cluster/{{ student_id }}: "{{ student_id }}"
+            kubernetes.io/cluster/demo: demo
         count_tag: master-node
         vpc_subnet_id: subnet-7414a13c
         assign_public_ip: yes
@@ -64,7 +64,7 @@
             type: app-node
             Name: ocp-node-{{ student_id }}-{{ item }}
             function: openshift
-            kubernetes.io/cluster/{{ student_id }}: "{{ student_id }}"
+            kubernetes.io/cluster/demo: demo
         count_tag: app-node
         vpc_subnet_id: subnet-7414a13c
         assign_public_ip: yes
@@ -77,7 +77,7 @@
       with_sequence: count={{ num_instances }}
       register: app_nodes
 
-    - name: deploy ec2 infra instances in HA config
+    - name: deploy ec2 infra instances
       ec2:
         key_name: nate-key
         instance_type: t2.xlarge
@@ -88,7 +88,7 @@
             type: infra-node
             Name: ocp-infra-{{ student_id }}-{{ item }}
             function: openshift
-            kubernetes.io/cluster/{{ student_id }}: "{{ student_id }}"
+            kubernetes.io/cluster/demo: demo
         count_tag: infra-node
         vpc_subnet_id: subnet-7414a13c
         assign_public_ip: yes
@@ -104,7 +104,7 @@
             delete_on_termination: true
       with_sequence: count=3
       register: infra_nodes
-      when: ha
+      when: cns_storage
 
     # - debug:
     #     var: master_nodes
@@ -141,7 +141,7 @@
       with_items: "{{ master_nodes_ha.results }}"
       when: ha
 
-    - name: create temp inventories - infra HA
+    - name: create temp inventories - infra
       add_host:
         hostname: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
         ansible_host: "{{ item['instances'][0]['public_ip'] }}"
@@ -149,7 +149,7 @@
           - all_nodes
           - infra
       with_items: "{{ infra_nodes.results }}"
-      when: ha
+      when: cns_storage
 
     - debug:
         var: groups['all_nodes']
@@ -191,7 +191,7 @@
       with_items: "{{ master_nodes_ha.results }}"
       when: ha
 
-    - name: update route53 for infra - HA
+    - name: update route53 for infra
       route53:
         state: present
         zone: openshift.stencell.net
@@ -201,7 +201,7 @@
         ttl: 300
         overwrite: true
       with_items: "{{ infra_nodes.results }}"
-      when: ha
+      when: cns_storage
 
     - name: wait for server to be available
       wait_for:
@@ -227,22 +227,6 @@
       name: 30 extra seconds for instances to return
 
     - import_tasks: ../install_ocp_packages.yml
-
-    - name: warm up docker images for cfme
-      get_url:
-        url: http://ocp-bastion.openshift.stencell.net/cfme/cfme-bundle.tar
-        dest: /tmp/cfme-bundle.tar
-      when: install_cfme
-
-    - name: load cfme images
-      shell: docker load -i /tmp/cfme-bundle.tar
-      when: install_cfme
-
-    - name: cleanup
-      file:
-        path: /tmp/cfme-bundle.tar
-        state: absent
-      when: install_cfme
 
 - name: create openshift inventory file
   hosts: localhost
