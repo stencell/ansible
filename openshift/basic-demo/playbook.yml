@@ -56,7 +56,7 @@
     - name: deploy ec2 node instances
       ec2:
         key_name: nate-key
-        instance_type: t2.xlarge
+        instance_type: t2.large
         image: ami-bd3f94c5
         wait: yes
         group: ['ocp_node', 'ocp_infranode']
@@ -80,7 +80,7 @@
     - name: deploy ec2 infra instances
       ec2:
         key_name: nate-key
-        instance_type: t2.xlarge
+        instance_type: t2.large
         image: ami-bd3f94c5
         wait: yes
         group: ['ocp_node', 'ocp_infranode']
