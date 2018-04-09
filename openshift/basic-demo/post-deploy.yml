@@ -14,7 +14,7 @@
       delegate_to: localhost
 
     - name: update public name in master-config
-      shell: sed -i.bak -e 's/{{ item.public_dns_name }}/ocp-master-{{ student_id }}-1.openshift.stencell.net/g' /etc/origin/master/master-config.yaml
+      shell: sed -i.bak -e 's/{{ item.public_dns_name }}/ocp-master-{{ student_id }}-1.{{ dns_zone }}/g' /etc/origin/master/master-config.yaml
       with_items: "{{ ec2_instances.instances }}"
 
     - name: update jenkins IS
@@ -27,17 +27,3 @@
       service:
         name: atomic-openshift-master-api
         state: restarted
-
-# - name: add CFME images
-#   hosts: all
-#   user: ec2-user
-#   become: true
-#
-#   tasks:
-#     - name: get image bundle from bastion
-#       get_url:
-#         url: http://ocp-bastion.openshift.stencell.net/cfme/cfme-bundle.tar
-#         dest: /tmp/cfme-bundle.tar
-#
-#     - name: load cfme images
-#       shell: docker load -i /tmp/cfme-bundle.tar

@@ -7,7 +7,7 @@
       ec2:
         key_name: nate-key
         instance_type: m4.xlarge
-        image: ami-bd3f94c5
+        image: ami-c405b8bc
         wait: yes
         group: ['ocp_node', 'ocp_master']
         instance_tags:
@@ -32,7 +32,7 @@
       ec2:
         key_name: nate-key
         instance_type: m4.xlarge
-        image: ami-bd3f94c5
+        image: ami-c405b8bc
         wait: yes
         group: ['ocp_node', 'ocp_master']
         instance_tags:
@@ -57,7 +57,7 @@
       ec2:
         key_name: nate-key
         instance_type: t2.large
-        image: ami-bd3f94c5
+        image: ami-c405b8bc
         wait: yes
         group: ['ocp_node', 'ocp_infranode']
         instance_tags:
@@ -81,7 +81,7 @@
       ec2:
         key_name: nate-key
         instance_type: t2.large
-        image: ami-bd3f94c5
+        image: ami-c405b8bc
         wait: yes
         group: ['ocp_node', 'ocp_infranode']
         instance_tags:
@@ -114,7 +114,7 @@
 
     - name: create temp inventories - masters
       add_host:
-        hostname: "{{ item.tags.Name }}.openshift.stencell.net"
+        hostname: "{{ item.tags.Name }}.{{ dns_zone }}"
         ansible_host: "{{ item.public_ip }}"
         groupname:
           - all_nodes
@@ -124,7 +124,7 @@
 
     - name: create temp inventories - nodes
       add_host:
-        hostname: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        hostname: "{{ item['instances'][0]['tags']['Name'] }}.{{ dns_zone }}"
         ansible_host: "{{ item['instances'][0]['public_ip'] }}"
         groupname:
           - all_nodes
@@ -133,7 +133,7 @@
 
     - name: create temp inventories - master HA
       add_host:
-        hostname: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        hostname: "{{ item['instances'][0]['tags']['Name'] }}.{{ dns_zone }}"
         ansible_host: "{{ item['instances'][0]['public_ip'] }}"
         groupname:
           - all_nodes
@@ -143,7 +143,7 @@
 
     - name: create temp inventories - infra
       add_host:
-        hostname: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        hostname: "{{ item['instances'][0]['tags']['Name'] }}.{{ dns_zone }}"
         ansible_host: "{{ item['instances'][0]['public_ip'] }}"
         groupname:
           - all_nodes
@@ -157,8 +157,8 @@
     - name: update route53 for master
       route53:
         state: present
-        zone: openshift.stencell.net
-        record: "{{ item.tags.Name }}.openshift.stencell.net"
+        zone: "{{ dns_zone }}"
+        record: "{{ item.tags.Name }}.{{ dns_zone }}"
         value: "{{ item.public_ip }}"
         type: A
         ttl: 300
@@ -170,8 +170,8 @@
     - name: update route53 for nodes
       route53:
         state: present
-        zone: openshift.stencell.net
-        record: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        zone: "{{ dns_zone }}"
+        record: "{{ item['instances'][0]['tags']['Name'] }}.{{ dns_zone }}"
         value: "{{ item['instances'][0]['public_ip'] }}"
         type: A
         ttl: 300
@@ -182,8 +182,8 @@
     - name: update route53 for masters - HA
       route53:
         state: present
-        zone: openshift.stencell.net
-        record: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        zone: "{{ dns_zone }}"
+        record: "{{ item['instances'][0]['tags']['Name'] }}.{{ dns_zone }}"
         value: "{{ item['instances'][0]['public_ip'] }}"
         type: A
         ttl: 300
@@ -194,8 +194,8 @@
     - name: update route53 for infra
       route53:
         state: present
-        zone: openshift.stencell.net
-        record: "{{ item['instances'][0]['tags']['Name'] }}.openshift.stencell.net"
+        zone: "{{ dns_zone }}"
+        record: "{{ item['instances'][0]['tags']['Name'] }}.{{ dns_zone }}"
         value: "{{ item['instances'][0]['public_ip'] }}"
         type: A
         ttl: 300
