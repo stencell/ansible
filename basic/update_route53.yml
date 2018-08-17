@@ -7,6 +7,7 @@
         region: us-west-2
         filters:
           "tag:Name": "{{ item }}"
+          "instance-state-name": running
       register: ec2_instances
       with_items:
         - ocp-master-{{ student_id }}-1
